@@ -1,25 +1,5 @@
-#resevoir
-#Sample weigthts from a normal distribution with mean zero and variance N σ^2_w= 1.
-#Input weights w_i^{in} were samples from normal distribution with mean zero and variance σ_{in}^2=1
-#Resservoir state initalised to zero r_i(0)=0
-#Reseoir dynamics was iterated through using second component x_2(t) of Ikeda time series as input x(t)
-#First 100 iterations were discarded
-#Energy function calculated from the next T:
-#H=(1/2) \sum_{t=0}^{T-1} [y(t)-O(t)]^2 =(1/2) ||y-R^T w^{(out)]}||^w
-#for time series prediction, y(t)=x(t)
-#R=[r(0), ...., r(T-1)] and y=[x(0),..., x[T-1]]^T
-#Minimise H to determine w^{out}:
-#   With ridge regression with ridge parameter 0.001
-
-
-#Resevoir computer is used to predict time series
-#Output were fed into inputs
-#ie c(t) in 9.35a was replaced by O(t)
-#Iterating through reservoir dynamics once, one gets r(T) from r(T-1) 
-#and O(T)=w^{out} \cdot r^{T}
-
-import random
 import numpy as np
+
 np.random.seed(5)
 #Initalise parameters and matrices 
 #Parameters
@@ -30,6 +10,18 @@ num_output_neurons=3 #????
 variance1=0.002
 variance2=2/500
 k_val=0.01
+washout=100
+
+#load data
+train_data=np.loadtxt('training-set.csv', delimiter=',')
+test_data=np.loadtxt('test-set-9.csv', delimiter=',')
+train_length=train_data.shape[1]
+test_length=test_data.shape[1]
+
+print(train_data.shape)
+print(train_data[1].shape)
+
+
 #Input weights are Gaussian with variance 0.002, 
 # reservoir weight Gaussian with variance 2/500
 # Input weight matrix size: (N inputs* N reservoir)
@@ -39,45 +31,23 @@ reservoir_weight=np.random.normal(0.0, np.sqrt(variance2), size=(num_reservoir_n
 
 #Training pass:
 #Prepater inputs and targets
-import csv
 import math
-#train_data=[]
-#with open('training-set.csv', newline='') as csvfile:
-#    csv_val=csv.reader(csvfile)
-#    for row in csv_val:
-#        train_data.append([float(x) for x in row])
-train_data=np.loadtxt('training-set.csv', delimiter=',')
-test_data=np.loadtxt('test-set-9.csv', delimiter=',')
-train_length=len(train_data)
-test_length=len(test_data)
+
 
 #Initalise reservoir state r_0=0
-r=np.zeros((train_length+1, num_reservoir_neurons))
-
-#r.append([0]*500)
-print(input_weight[0][0])
-print("HI")
+r=np.zeros((num_reservoir_neurons, train_length+1))
+r_without_first=np.zeros((num_reservoir_neurons, train_length))
 
 #For each t:
 for t in range(train_length):
-    for i in range(num_reservoir_neurons):
-        print(f"t is {t} and i is {i}")
-        #print(f" here we have {train_data[t][0]} and {train_data[t][1]} and {train_data[t][2]}")
-        #print(reservoir_weight[i][499])
-        #print(r[1])
-        sum1=sum(reservoir_weight[i][j]*r[t][j] for j in range(num_reservoir_neurons))
-        #t=0, i=3
-        #print(train_data[t][num_input_neurons])
-        #print(input_weight[i])
-        sum2=sum(input_weight[i][k]*train_data[t][k] for k in range(num_input_neurons))
-        
-        r[t+1][i]=(math.tanh(sum1+sum2))
-    #r.append(r_local)
-    #Update reservoir:
-        #r_i(t+1)=tanh(\sum_j w_{ij} r_j (t) + \sum_{k=1}^{N} w_{ik}^{in} x_k(t))
+    x_t=train_data[:,t]
+    r[:, t+1]=np.tanh(reservoir_weight@ r[:, t]+input_weight @ x_t)
+    r_without_first[:,t]=r[:, t+1]
+    
+
 #Drop the first 100 steps
-dropped_r=r[101:]
-dropped_train=train_data[101:]
+dropped_r=r_without_first[:, washout:]
+dropped_train=train_data[:, washout:].copy() #should i keep the copy thing
 
 
 
@@ -85,87 +55,43 @@ dropped_train=train_data[101:]
 #r=np.array(r)
 #print(f"r_shape is {r.shape}")
 
-W_out=(dropped_train.T@dropped_r) @np.linalg.inv(dropped_r.T @ dropped_r + k_val * np.identity(num_reservoir_neurons))
-#Train the readout (ridge_regression)
-#X where rows are features (reservoir states, optional input, bias)
-#Y: corresponding target outputs
-O=np.zeros((train_length, num_output_neurons))
-for t in range(train_length):
-    for m in range(num_output_neurons):
-        #print(W_out[i][num_reservoir_neurons-1])
-        #print(r[t])
-        O[t][m]=sum(W_out[m][j]*r[t][j] for j in range(num_reservoir_neurons))
-        
+W_out=(dropped_train@dropped_r.T) @np.linalg.inv(dropped_r @ dropped_r.T + k_val * np.identity(num_reservoir_neurons))
 
-#Comput readout weights:
-    #O_i(t+1)=\sum_j w_{ij}^{out} r_j (t+1)
-    #Ridge_parameter k=0.01
-    #Use \lambda >0 (ridge)
+r_testing=np.zeros((num_reservoir_neurons, test_length+1))
+o_testing=np.zeros((num_output_neurons, test_length+1))
+
+for t in range(test_length):
+    r_testing[:, t+1]=np.tanh(reservoir_weight@r_testing[:, t]+ input_weight@test_data[:, t])
+    o_testing[:, t+1]=W_out @ r_testing[:, t+1]
 
 #predict 500 time steps
 
-r_new=np.zeros((train_length+1, num_reservoir_neurons))
+r_pred=np.zeros((num_reservoir_neurons, 501))
+o_pred=np.zeros((num_output_neurons, 501))
+r_pred[:,0]=r_testing[:, test_length] 
 
-#r.append([0]*500)
-print(input_weight[0][0])
-print("HI")
 
+o_old=o_testing[:, test_length]
 #For each t:
-for t in range(train_length):
-    for i in range(num_reservoir_neurons):
-        print(f"t is {t} and i is {i}")
-        #print(f" here we have {train_data[t][0]} and {train_data[t][1]} and {train_data[t][2]}")
-        #print(reservoir_weight[i][499])
-        #print(r[1])
-        sum1=sum(reservoir_weight[i][j]*r[t][j] for j in range(num_reservoir_neurons))
-        #t=0, i=3
-        #print(train_data[t][num_input_neurons])
-        #print(input_weight[i])
-        sum2=sum(input_weight[i][k]*O[t][k] for k in range(num_input_neurons))
-        
-        r_new[t+1][i]=(math.tanh(sum1+sum2))
+for t in range(500):
+    r_pred[:, t+1]=np.tanh(reservoir_weight@ r_pred[:, t]+input_weight @ o_old)
+    o_pred[:, t+1]=W_out @ r_pred[:, t+1]
+    o_old=o_pred[:, t+1]
 
+predicted_values=o_pred[1, 1:501]
+np.savetxt('prediction.csv', predicted_values.reshape(1,-1), delimiter=",")
 
-O_new=np.zeros((train_length+test_length+1, num_output_neurons))
-O2_new=np.zeros(train_length+test_length+1)
-for t in range(train_length):
-    for m in range(num_output_neurons):
-        #print(W_out[i][num_reservoir_neurons-1])
-        #print(r[t])
-        O_new[t][m]=sum(W_out[m][j]*r_new[t][j] for j in range(num_reservoir_neurons))
-    O2_new[t]=O_new[t][1]
+import matplotlib.pyplot as plt
 
-#Calculating new r
-output_r=r_new+np.zeros((test_length+1, num_reservoir_neurons)) 
+predicted_x = o_pred[0, 1:501]
+predicted_y = o_pred[1, 1:501]
+predicted_z = o_pred[2, 1:501]
+fig = plt.figure(figsize=(8,6))
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(predicted_x, predicted_y, predicted_z, lw=0.8)
 
-
-r_final=np.zeros((test_length+1, num_reservoir_neurons))
-
-#r.append([0]*500)
-print(input_weight[0][0])
-print("HI")
-
-#For each t:
-for t in range(test_length):
-    for i in range(num_reservoir_neurons):
-        print(f"t is {t} and i is {i}")
-        #print(f" here we have {train_data[t][0]} and {train_data[t][1]} and {train_data[t][2]}")
-        #print(reservoir_weight[i][499])
-        #print(r[1])
-        sum1=sum(reservoir_weight[i][j]*r_final[t][j] for j in range(num_reservoir_neurons))
-        #t=0, i=3
-        #print(train_data[t][num_input_neurons])
-        #print(input_weight[i])
-        sum2=sum(input_weight[i][k]*test_data[t][k] for k in range(num_input_neurons))
-        
-        r_final[t+1][i]=(math.tanh(sum1+sum2))
-
-
-for t in range(test_length):
-    for m in range(num_output_neurons):
-        #print(W_out[i][num_reservoir_neurons-1])
-        #print(r[t])
-        print(O_new[t+train_length])
-        O_new[t+train_length][m]=sum(W_out[m][j]*r_final[t][j] for j in range(num_reservoir_neurons))
-    O2_new[t+train_length]=O_new[t+train_length][1]
-
+ax.set_title("Lorenz Attractor Prediction")
+ax.set_xlabel("X Axis")
+ax.set_ylabel("Y Axis")
+ax.set_zlabel("Z Axis")
+plt.show()
