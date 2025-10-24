@@ -1,16 +1,17 @@
 import numpy as np
 
-np.random.seed(5)
+np.random.seed(42)
 #Initalise parameters and matrices 
 #Parameters
-dt=0.02
 num_input_neurons=3
 num_reservoir_neurons=500
-num_output_neurons=3 #????
+num_output_neurons=3
 variance1=0.002
 variance2=2/500
 k_val=0.01
 washout=100
+prediction=500
+scaling=0.1
 
 #load data
 train_data=np.loadtxt('training-set.csv', delimiter=',')
@@ -18,68 +19,32 @@ test_data=np.loadtxt('test-set-9.csv', delimiter=',')
 train_length=train_data.shape[1]
 test_length=test_data.shape[1]
 
-print(train_data.shape)
-print(train_data[1].shape)
-
-
-
-mean = np.mean(train_data, axis=1, keepdims=True)
-std = np.std(train_data, axis=1, keepdims=True)
-train_data_n = (train_data - mean) / std
-test_data_n = (test_data - mean) / std
-
-
-
-
-
-
-
-
 
 #Input weights are Gaussian with variance 0.002, 
 # reservoir weight Gaussian with variance 2/500
 # Input weight matrix size: (N inputs* N reservoir)
-input_weight=np.random.normal(0.0, np.sqrt(variance1), size=(num_reservoir_neurons, num_input_neurons)) #normal and gauss are the same, right?
+input_weight=np.random.normal(0.0, np.sqrt(variance1), (num_reservoir_neurons, num_input_neurons)) #normal and gauss are the same, right?
 # Reservoir weights matrix
-reservoir_weight=np.random.normal(0.0, np.sqrt(variance2), size=(num_reservoir_neurons, num_reservoir_neurons))
-
-
-
-desired_radius=0.9
-eigs = np.linalg.eigvals(reservoir_weight)
-spectral_radius = np.max(np.abs(eigs))
-reservoir_weight *= (desired_radius / spectral_radius)  # desired_radius ≈ 0.9
-
-
-
-
-#Training pass:
-#Prepater inputs and targets
-import math
+reservoir_weight=np.random.normal(0.0, np.sqrt(variance2), (num_reservoir_neurons, num_reservoir_neurons))
 
 
 #Initalise reservoir state r_0=0
 r=np.zeros((num_reservoir_neurons, train_length+1))
-r_without_first=np.zeros((num_reservoir_neurons, train_length))
 
+#Training pass:
+#Prepater inputs and targets
 #For each t:
 for t in range(train_length):
     x_t=train_data[:,t]
     r[:, t+1]=np.tanh(reservoir_weight@ r[:, t]+input_weight @ x_t)
-    r_without_first[:,t]=r[:, t+1]
     
 
 #Drop the first 100 steps
-dropped_r=r_without_first[:, washout:]
-dropped_train=train_data[:, washout:].copy() #should i keep the copy thing
+dropped_r=r[:, washout+1:train_length]
+dropped_train=train_data[:, washout+1: train_length] 
 
 
-
-#train_data=np.array(train_data)
-#r=np.array(r)
-#print(f"r_shape is {r.shape}")
-
-W_out=(dropped_train@dropped_r.T) @np.linalg.inv(dropped_r @ dropped_r.T + k_val * np.identity(num_reservoir_neurons))
+W_out=(dropped_train@dropped_r.T) @np.linalg.inv(dropped_r @ dropped_r.T + k_val * np.eye(num_reservoir_neurons))
 
 r_testing=np.zeros((num_reservoir_neurons, test_length+1))
 o_testing=np.zeros((num_output_neurons, test_length+1))
