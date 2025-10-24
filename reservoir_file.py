@@ -22,12 +22,36 @@ print(train_data.shape)
 print(train_data[1].shape)
 
 
+
+mean = np.mean(train_data, axis=1, keepdims=True)
+std = np.std(train_data, axis=1, keepdims=True)
+train_data_n = (train_data - mean) / std
+test_data_n = (test_data - mean) / std
+
+
+
+
+
+
+
+
+
 #Input weights are Gaussian with variance 0.002, 
 # reservoir weight Gaussian with variance 2/500
 # Input weight matrix size: (N inputs* N reservoir)
 input_weight=np.random.normal(0.0, np.sqrt(variance1), size=(num_reservoir_neurons, num_input_neurons)) #normal and gauss are the same, right?
 # Reservoir weights matrix
 reservoir_weight=np.random.normal(0.0, np.sqrt(variance2), size=(num_reservoir_neurons, num_reservoir_neurons))
+
+
+
+desired_radius=0.9
+eigs = np.linalg.eigvals(reservoir_weight)
+spectral_radius = np.max(np.abs(eigs))
+reservoir_weight *= (desired_radius / spectral_radius)  # desired_radius ≈ 0.9
+
+
+
 
 #Training pass:
 #Prepater inputs and targets
