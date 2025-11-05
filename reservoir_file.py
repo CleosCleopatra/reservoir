@@ -23,7 +23,7 @@ test_length=test_data.shape[1]
 #Input weights are Gaussian with variance 0.002, 
 # reservoir weight Gaussian with variance 2/500
 # Input weight matrix size: (N inputs* N reservoir)
-input_weight=np.random.normal(0.0, np.sqrt(variance1), (num_reservoir_neurons, num_input_neurons)) #normal and gauss are the same, right?
+input_weight=np.random.normal(0.0, np.sqrt(variance1), (num_reservoir_neurons, num_input_neurons)) 
 # Reservoir weights matrix
 reservoir_weight=np.random.normal(0.0, np.sqrt(variance2), (num_reservoir_neurons, num_reservoir_neurons))
 
@@ -79,7 +79,7 @@ fig = plt.figure(figsize=(8,6))
 ax = fig.add_subplot(111, projection='3d')
 ax.plot(predicted_x, predicted_y, predicted_z, lw=0.8)
 
-ax.set_title("Lorenz Attractor Prediction")
+ax.set_title("Prediction")
 ax.set_xlabel("X Axis")
 ax.set_ylabel("Y Axis")
 ax.set_zlabel("Z Axis")
